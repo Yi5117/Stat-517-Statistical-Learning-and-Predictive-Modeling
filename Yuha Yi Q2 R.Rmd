@@ -1,0 +1,442 @@
+---
+title: "Stats 517 Q2 -YiYuha"
+output:
+  pdf_document: default
+  html_document: default
+  word_document: default
+---
+
+```{r setup, include=TRUE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+#Code
+
+```{r pressure, echo=FALSE}
+#install.packages(plyr)
+#install.packages(stringr)
+#install.packages(caret)
+#install.packages(car)
+#install.packages(class)
+#install.packages(knitr)
+#install.packages(MASS)
+#install.packages(e1071)
+#install.packages(glmnet)
+#install.packages(pls)
+#install.packages(mice)
+#install.packages("FNN")
+#install.packages("kknn")
+#install.packages("topicmodels")
+library(FNN)
+library(topicmodels)
+library(kknn)
+library(stringi)
+library(plyr)
+library(stringr)
+library(caret)
+library(car)
+library(class)
+library(knitr)
+library(MASS)
+library(e1071)
+library(glmnet)
+library(pls)
+library(mice)
+library(topicmodels)
+library(rmarkdown)
+```
+
+```{r pressure, echo=TRUE}
+setwd("C:\\Users\\yiyuh\\Documents\\College\\Fall 2018\\Stat 517 - Machine Learning\\Project 1 - Stats 517")
+adult = read.csv("adult.csv", sep=',',header=T)
+names(adult)<-c('age','workclass','fnlwgt', 'education','edu_num','marital','occupation',
+'relationship','race','sex','cap_gain','cap_loss','hpw','country','salary')
+head(adult)
+str(adult)
+```
+
+
+```{r pressure, echo=TRUE}
+#Aggregate the variables to make the model simpler.
+
+adult$country = as.character(adult$country)
+adult$education = as.character(adult$education)
+adult$marital = as.character(adult$marital)
+adult$occupation = as.character(adult$occupation)
+adult$race = as.character(adult$race)
+adult$workclass = as.character(adult$workclass)
+```
+
+```{r pressure, echo=TRUE}
+#Starting with Countries, group them per region with 
+#North America, Latin and South America, Europe, and Asia
+adult$country= gsub("Cambodia", "Asia", adult$country)
+adult$country= gsub("Canada", "NorthAm", adult$country)
+adult$country= gsub("China","Asia" ,adult$country)
+adult$country= gsub("Columbia","LatinSthAm", adult$country)
+adult$country= gsub("Cuba", "LatinSthAm", adult$country)
+adult$country= gsub("Dominican-Republic","LatinSthAm",adult$country)
+adult$country= gsub("Ecuador", "LatinSthAm", adult$country)
+adult$country= gsub("El-Salvador", "LatinSthAm", adult$country)
+adult$country= gsub("England", "Europe", adult$country)
+adult$country= gsub("France", "Europe", adult$country)
+adult$country= gsub("Germany", "Europe", adult$country)
+adult$country= gsub("Greece", "Europe", adult$country)
+adult$country= gsub("Guatemala", "LatinSthAm", adult$country)
+adult$country= gsub("Haiti", "LatinSthAm", adult$country)
+adult$country= gsub("Holand-Netherlands","Europe", adult$country)
+adult$country= gsub("Honduras", "LatinSthAm", adult$country)
+adult$country= gsub("Hong", "Asia", adult$country)
+adult$country= gsub("Hungary", "Europe", adult$country)
+adult$country= gsub("India", "Asia", adult$country)
+adult$country= gsub("Iran","Asia", adult$country)
+adult$country= gsub("Ireland","Europe", adult$country)
+adult$country= gsub("Italy", "Europe", adult$country)
+adult$country= gsub("Jamaica", "LatinSthAm", adult$country)
+adult$country= gsub("Japan", "Asia", adult$country)
+adult$country= gsub("Laos", "Asia", adult$country)
+adult$country= gsub("Mexico", "LatinSthAm", adult$country)
+adult$country= gsub("Nicaragua", "LatinSthAm",adult$country)
+adult$country= gsub("Peru", "LatinSthAm", adult$country)
+adult$country= gsub("Philippines", "Asia", adult$country)
+adult$country= gsub("Poland", "Europe", adult$country)
+adult$country= gsub("Portugal", "Europe", adult$country)
+adult$country= gsub("Puerto-Rico", "LatinSthAm", adult$country)
+adult$country= gsub("Scotland", "Europe", adult$country)
+adult$country= gsub("South", "Europe", adult$country)
+adult$country= gsub("Taiwan", "Asia", adult$country)
+adult$country= gsub("Thailand", "Asia", adult$country)
+adult$country= gsub("Trinadad&Tobago", "LatinSthAm",adult$country)
+adult$country= gsub("United-States", "NorthAm",adult$country)
+adult$country= gsub("Europe-America", "NorthAm",adult$country)
+adult$country= gsub("Vietnam","Asia", adult$country)
+adult$country= gsub("Yugoslavia","Europe", adult$country)
+adult$country= gsub("Outlying-US(Guam-USVI-etc)", "LatinSthAm", adult$country, fixed = TRUE)
+```
+
+```{r pressure, echo=TRUE}
+#Separate workclass into government, private, self employed, and other
+adult$workclass = gsub("Federal-gov","gov",adult$workclass)
+adult$workclass = gsub("Local-gov","gov",adult$workclass)
+adult$workclass = gsub("State-gov","gov",adult$workclass)
+adult$workclass = gsub("Private","Private",adult$workclass)
+adult$workclass = gsub("Self-emp-inc","Self-Employed",adult$workclass)
+adult$workclass = gsub("Self-emp-not-inc","Self-Employed",adult$workclass)
+adult$workclass = gsub("Without-pay","Other",adult$workclass)
+adult$workclass = gsub("Never-worked","Other",adult$workclass)
+table(adult$workclass)
+```
+
+
+```{r pressure, echo=TRUE}
+#Marital status is changed to non-married and married
+adult$marital = gsub("Never-married", "Non-Married",adult$marital)
+adult$marital = gsub("Married-AF-spouse","Married",adult$marital)
+adult$marital= gsub("Married-civ-spouse","Married",adult$marital)
+adult$marital= gsub("Married-spouse-absent", "Non-Married",adult$marital)
+adult$marital= gsub("Separated","Non-Married",adult$marital)
+adult$marital= gsub("Divorced", "Non-Married",adult$marital)
+adult$marital= gsub("Widowed", "Non-Married",adult$marital)
+table(adult$marital)
+```
+```{r pressure, echo=TRUE}
+#Education
+adult$education = gsub("10th","<=HS",adult$education)
+adult$education = gsub("11th","<=HS",adult$education)
+adult$education = gsub("12th","<=HS",adult$education)
+adult$education = gsub("1st-4th","<=HS",adult$education)
+adult$education = gsub("5th-6th","<=HS",adult$education)
+adult$education = gsub("7th-8th","<=HS",adult$education)
+adult$education = gsub("9th","<=HS",adult$education)
+adult$education = gsub("Assoc-acdm","Other",adult$education)
+adult$education = gsub("Assoc-voc","Other",adult$education)
+adult$education = gsub("Bachelors","college",adult$education)
+adult$education = gsub("Doctorate","Grad-Sch",adult$education)
+adult$education = gsub("HS-Grad","<=HS",adult$education)
+adult$education = gsub("HS-grad","<=HS",adult$education)
+adult$education = gsub("HS-Graduate","<=HS",adult$education)
+adult$education = gsub("Masters","Grad-Sch",adult$education)
+adult$education = gsub("Preschool","<=HS",adult$education)
+adult$education = gsub("Prof-school","Other",adult$education)
+adult$education = gsub("Some-college","college",adult$education)
+```
+
+
+```{r pressure, echo=TRUE}
+#Occupation is changed from white collar jobs and non-white collar jobs
+adult$occupation = gsub("Adm-clerical","Wcollar",adult$occupation)
+adult$occupation = gsub("Armed-Forces","Non-Wcollar",adult$occupation)
+adult$occupation = gsub("Craft-repair","Non-Wcollar",adult$occupation)
+adult$occupation = gsub("Exec-managerial","Wcollar",adult$occupation)
+adult$occupation = gsub("Farming-fishing","Non-Wcollar",adult$occupation)
+adult$occupation = gsub("Handlers-cleaners","Non-Wcollar",adult$occupation)
+adult$occupation = gsub("Machine-op-inspct","Non-Wcollar",adult$occupation)
+adult$occupation = gsub("Other-service","Non-Wcollar",adult$occupation)
+adult$occupation = gsub("Priv-house-serv","Non-Wcollar",adult$occupation)
+adult$occupation = gsub("Prof-specialty","Wcollar",adult$occupation)
+adult$occupation = gsub("Protective-serv","Wcollar",adult$occupation)
+adult$occupation = gsub("Sales","Wcollar",adult$occupation)
+adult$occupation = gsub("Tech-support","Wcollar",adult$occupation)
+adult$occupation = gsub("Transport-moving","Non-Wcollar",adult$occupation)
+table(adult$occupation)
+```
+
+```{r pressure, echo=TRUE}
+#White and Non-white
+adult$race= gsub("White","White",adult$race)
+adult$race= gsub("Black","Non-White",adult$race)
+adult$race= gsub("Amer-Indian-Eskimo","Non-White",adult$race)
+adult$race= gsub("Asian-Pac-Islander", "Non-White",adult$race)
+adult$race= gsub("Other", "Non-White",adult$race)
+
+#Separated into family and not in family
+adult$relationship= gsub("Husband", "In_Family", adult$relationship)
+adult$relationship= gsub("Not-in-family", "Not-in-family", adult$relationship)
+adult$relationship= gsub("Unmarried", "Not-in-family", adult$relationship)
+adult$relationship= gsub("Other-relative ", "Other", adult$relationship)
+adult$relationship= gsub("Own-child", "In_Family",adult$relationship)
+adult$relationship= gsub("Wife", "In_Family",adult$relationship)
+```
+
+
+
+```{r pressure, echo=TRUE}
+#Take out missing data
+is.na(adult) = adult=='?' 
+adult = na.omit(adult)
+
+```
+
+```{r pressure, echo=TRUE}
+#Married =1, Non-Married=0
+adult$marital = as.factor(ifelse(adult$marital==adult$marital[1],0,1))
+adult$education = factor(adult$education)
+adult$country = factor(adult$country)
+adult$workclass = factor(adult$workclass)
+# Wcollar labels 1, Non-Wcolar labels 0
+adult$Wcollar = as.factor(ifelse(adult$occupation==adult$occupation[1],1,0))
+#White labels 1, Non-white labels 0
+adult$race = as.factor(ifelse(adult$race==adult$race[1],1,0))
+#Male labels 1, Female labels 0
+adult$sex = as.factor(ifelse(adult$sex==adult$sex[1],1,0))
+adult$relationship = factor(adult$relationship)
+adult$salary = as.factor(ifelse(adult$salary==adult$salary[1],0,1))
+#combine capital_gain and capital_loss into one variable :extra_salary
+adult$extra_salary <- adult$cap_gain - adult$cap_loss
+adult <- subset(adult,select = -c(occupation, cap_gain, cap_loss))
+
+```
+
+```{r pressure, echo=TRUE}
+set.seed(1234)
+train_test_2_split=sample(1:2,dim(adult)[1],repl=T)
+idx1<-train_test_2_split
+adult.train<-adult[idx1==1,] #training set
+adult.test<-adult[idx1==2,]
+
+```
+
+
+```{r pressure, echo=TRUE}
+adult.glm = glm(formula = salary ~ ., family = binomial, data = adult.train)
+summary(adult.glm)
+
+glm.prob=predict(adult.glm,type="response",newdata=adult.test)
+glm.pred=rep(0,15233)
+#50% threshold for the test
+glm.pred[glm.prob>0.5]=1 
+#Accuracy of glm
+table(glm.pred,adult.test$salary)
+mean(glm.pred==adult.test$salary)
+
+```
+
+Call:
+glm(formula = salary ~ ., family = binomial, data = adult.train)
+
+Deviance Residuals: 
+    Min       1Q   Median       3Q      Max  
+-4.6178  -0.5353  -0.2187  -0.0455   3.4369  
+
+Coefficients:
+                              Estimate Std. Error z value
+(Intercept)                 -1.076e+01  3.676e-01 -29.270
+age                          2.871e-02  2.141e-03  13.412
+workclass gov                5.554e-01  1.575e-01   3.527
+workclass Other             -1.161e+01  1.191e+02  -0.097
+workclass Private            5.515e-01  1.467e-01   3.759
+workclass Self-Employed      3.405e-01  1.569e-01   2.170
+fnlwgt                       7.860e-07  2.381e-07   3.301
+education college            5.417e-02  7.720e-02   0.702
+education Grad-Sch           5.104e-02  1.371e-01   0.372
+education Other             -8.704e-02  1.033e-01  -0.843
+edu_num                      2.810e-01  1.817e-02  15.462
+marital1                     3.240e+00  1.657e-01  19.556
+relationship Not-in-family   8.735e-01  1.704e-01   5.126
+relationship Other-relative -5.335e-01  2.957e-01  -1.804
+race1                        1.647e-01  8.391e-02   1.963
+sex1                         1.648e-01  6.778e-02   2.431
+hpw                          2.993e-02  2.171e-03  13.789
+country Asia                 2.858e-01  2.593e-01   1.102
+country Europe               3.493e-01  2.617e-01   1.335
+country LatinSthAm          -3.425e-01  2.531e-01  -1.353
+country NorthAm              3.223e-01  1.962e-01   1.643
+Wcollar1                     8.296e-01  5.842e-02  14.200
+extra_salary                 2.341e-04  1.123e-05  20.854
+                            Pr(>|z|)    
+(Intercept)                  < 2e-16 ***
+age                          < 2e-16 ***
+workclass gov               0.000420 ***
+workclass Other             0.922384    
+workclass Private           0.000171 ***
+workclass Self-Employed     0.029989 *  
+fnlwgt                      0.000964 ***
+education college           0.482900    
+education Grad-Sch          0.709618    
+education Other             0.399379    
+edu_num                      < 2e-16 ***
+marital1                     < 2e-16 ***
+relationship Not-in-family  2.97e-07 ***
+relationship Other-relative 0.071192 .  
+race1                       0.049692 *  
+sex1                        0.015069 *  
+hpw                          < 2e-16 ***
+country Asia                0.270305    
+country Europe              0.181985    
+country LatinSthAm          0.176009    
+country NorthAm             0.100484    
+Wcollar1                     < 2e-16 ***
+extra_salary                 < 2e-16 ***
+---
+Signif. codes:  
+0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+
+(Dispersion parameter for binomial family taken to be 1)
+
+    Null deviance: 17876  on 16178  degrees of freedom
+Residual deviance: 10905  on 16156  degrees of freedom
+AIC: 10951
+
+Number of Fisher Scoring iterations: 12
+
+        
+glm.pred     0     1
+       0 10753  1499
+       1   930  2304
+[1] NA
+
+
+``` {r pressure, echo=TRUE}
+#K Nearest Neighbors
+adult1 = adult
+num.vars <- sapply(adult, is.numeric)
+fac.vars <- sapply(adult, is.factor)
+# Changing to continuous variables
+adult1[num.vars] <- lapply(adult[num.vars], scale)
+#Changing factors to dummies
+adult1_k=cbind(adult1[-c(2,4,7,11)], model.matrix( ~ 0+
+workclass+education+relationship+country, adult1))
+set.seed(321)
+train_test_2_split=sample(1:2,dim(adult1)[1],repl=T)
+idx1<-train_test_2_split
+train.X<-adult1_k[idx1==1,]
+test.X<-adult1_k[idx1==2,]
+train.Y=train.X$salary
+test.Y=test.X$salary
+set.seed(321)
+
+#Try k=1 first
+knn.pred_1=knn(train.X,test.X,train.Y,k=1)
+table(knn.pred_1,test.Y)
+
+```
+          test.Y
+knn.pred_1     0     1
+         0 12274   204
+         1    78  3676
+```{r pressure, echo=TRUE}
+#k=10
+knn.pred_10=knn(train.X,test.X,train.Y,k=10)
+table(knn.pred_10,test.Y)
+```
+           test.Y
+knn.pred_10     0     1
+          0 12284   284
+          1    68  3596
+```{r pressure, echo=TRUE}
+#K=25
+knn.pred_25=knn(train.X,test.X,train.Y,k=25)
+table(knn.pred_25,test.Y)
+```
+           test.Y
+knn.pred_25     0     1
+          0 12262   345
+          1    90  3535
+
+```{r pressure, echo=TRUE}
+#Linear Discriminant Model
+lda.fit=lda(salary~.,data=adult.train)
+lda.pred=predict(lda.fit, adult.test)
+lda.class=lda.pred$class
+#Accuracy score of LDA
+table(lda.class,adult.test$salary)
+mean(lda.class==adult.test$salary)
+
+
+
+```
+lda.class     0     1
+        0 11478  1709
+        1   965  2230
+[1] 0.8367721
+```{r pressure, echo=TRUE}
+
+#Naives Bayes Model
+NB.fit <- naiveBayes(salary~., data=adult.train) #fit the NB model
+summary(NB.fit)
+
+```
+
+```{r pressure, echo=TRUE}
+NB.pred <- predict(NB.fit, adult.test)
+#Accuracy of Naive Bayes Model
+table(NB.pred, adult.test$salary)
+mean(NB.pred ==adult.test$income)
+```
+NB.pred     0     1
+      0 11881  2175
+      1   562  1764
+[1] NaN
+``````{r pressure, echo=TRUE}
+#Results
+Accuracy <- rbind(mean(glm.pred ==adult.test$salary),
+mean(knn.pred_1 ==adult.test$salary),
+mean(knn.pred_10 ==adult.test$salary),
+mean(knn.pred_25 ==adult.test$salary),
+mean(lda.class ==adult.test$salary),
+mean(NB.pred ==adult.test$salary))
+rownames(Accuracy) <- (c('Logistic Regression', 'Linear Discriminant Analysis',
+'K-Nearest Neighbors with k=1', 'K-Nearest Neighbors with k=10','K-Nearest Neighbors with k=25','Naive Bayes'))
+colnames(Accuracy) <- 'Accuracy'
+round(Accuracy, 4)
+
+```
+
+Accuracy
+Logistic Regression                 NA
+Linear Discriminant Analysis    0.6389
+K-Nearest Neighbors with k=1    0.6422
+K-Nearest Neighbors with k=10   0.6434
+K-Nearest Neighbors with k=25   0.8368
+Naive Bayes     
+
+
+#The K nearest neighbors with k=25 seems to be the best model with an 84% accuracy right next to Naive Bayes
+
+
+
+

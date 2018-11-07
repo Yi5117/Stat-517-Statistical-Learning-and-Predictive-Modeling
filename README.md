@@ -1,1 +1,2 @@
-# Stat-517-Statistical-Learning-and-Predictive-Modeling
+# Stat-517-Proj-1
+Questions two and three
