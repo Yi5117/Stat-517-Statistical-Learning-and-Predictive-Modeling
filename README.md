@@ -1,1 +1,1 @@
-# Stat-517-Proj-2
+# Stat-517 University of Idaho Fall 2018
