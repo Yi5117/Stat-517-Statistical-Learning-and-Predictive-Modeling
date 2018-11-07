@@ -1,0 +1,217 @@
+---
+title: "Yuha Yi Stats 517 Proj 2 Question 0"
+output: html_notebook
+---
+
+
+```{r}
+library(mice)
+setwd("C:\\Users\\yiyuh\\Documents\\College\\Fall 2018\\Stat 517 - Machine Learning\\Project 2 - Stats 517")
+data=read.csv("salary_uk.csv")
+table(data$Category)
+str(data)
+data$Title<- as.factor(data$Title)
+data$FullDescription<- as.factor(data$FullDescription)
+data$ContractType[data$ContractType=='']<-NA
+data$ContractType <- as.factor(data$ContractType)
+data$ContractTime[data$ContractTime=='']<-NA
+data$ContractTime <- as.factor(data$ContractTime)
+data$Category <- as.factor(data$Category)
+data$SourceName <- as.factor(data$SourceName)
+data$Company <- as.factor(data$Company)
+data$LocationNormalized <- as.factor(data$LocationNormalized)
+data<-subset(data,select = -c(SalaryRaw))
+
+```
+```{r}
+#Cleaning the data
+
+data$Tlevel<-"Mid-Level"
+for(i in 1:length(data$Title)){
+if(grepl('Director', data[i,3],ignore.case=TRUE)|
+ grepl('Senior', data[i,2], ignore.case = TRUE)|
+ grepl('Chef',data[i,2] , ignore.case = TRUE) |
+ grepl('Lead',data[i,2] , ignore.case = TRUE)){
+data$Tlevel [i]<- "Senior"
+} else if (grepl("data$Junior",data[i,2] ,ignore.case = TRUE) | grepl("Entry",data[i,2] , ignore.case = TRUE)) {
+data$Tlevel[i]<- "Junior"
+} else {
+data$Tlevel[i]<- "Mid-Level"
+}
+}
+```
+
+
+```{r}
+# Aggregate company variable
+company.counts <- summary(data$Company)
+top.company <- names(company.counts[order(company.counts, decreasing= TRUE)][1:50])
+data$TopCom <- factor(data$Company, levels=top.company)
+data$TopCom[data$TopCom == ""] <-NA
+data$TopCom <- as.factor(ifelse(is.na(data$TopCom), 0, 1))
+
+# White Collar jobs are 1, else 0
+data$WhiteCollar <- grepl('IT', data$Category) | grepl('Engineer', data$Category) |
+grepl('Finance', data$Category) | grepl('Legal', data$Category) | grepl('Consult', data$Category)|
+grepl('HR', data$Category)
+data$WhiteCollar <- as.factor(ifelse(data$WhiteCollar == "TRUE", 1, 0))
+
+#SourceName is separated as top 5 being 1, and else 0
+sources.counts <- summary(data$SourceName)
+top5.sources <- names(sources.counts[order(sources.counts, decreasing= TRUE)][1:5])
+data$Top5Source <- factor(data$Source, levels=top5.sources)
+data$Top5Source <- as.factor(ifelse(is.na(data$Top5Source), 0, 1))
+
+#Deleting features
+data1<-subset(data,select = -c(Id,Title,FullDescription,LocationRaw,LocationNormalized,
+Company,Category,SourceName))
+
+```
+
+
+```{r}
+#Train Test data split
+set.seed(2344)
+n=10000
+idx=sample(1:2,n,repl=T)
+ss1<-data1[idx==1,]
+ss_mod1=mice(ss1[, !names(ss1) %in% "SalaryNormalized"],
+method = c("polyreg", "polyreg", "", "" , "", ""))
+
+ss11<-cbind(complete(ss_mod1),SalaryNormalized=ss1[,'SalaryNormalized'])
+ss2<-data1[idx==2,]
+ss_mod2=mice(ss2[, !names(ss2) %in% "SalaryNormalized"],
+method = c("polyreg", "polyreg", "", "" , "", ""))
+ss22<-cbind(complete(ss_mod2),SalaryNormalized=ss2[,'SalaryNormalized'])
+set.seed(1234)
+n=10000
+idx2=sample(1:2,n,repl=T)
+data2=rbind(ss11,ss22)
+data1.train<-data2[idx2==1,] #training set
+data1.test<-data2[idx2==2,] #testing set
+
+```
+
+
+```{r}
+####Linear Regression####
+data.lm = lm(formula = SalaryNormalized ~ ., data = data1.train)
+summary(data.lm)
+```
+
+
+```{r}
+lm_full <- data.lm # full model is the model just fitted
+lm_null <- lm(SalaryNormalized ~ 1, data = data1.train)
+# backward selection
+step(lm_full, trace = F, scope = list(lower=formula(lm_null), upper=formula(lm_full)),
+direction = 'backward')
+
+```
+```{r}
+# forward selection
+step(lm_null, trace = F, scope = list(lower=formula(lm_null), upper=formula(lm_full)),
+direction = 'forward')
+```
+
+
+```{r}
+##Predict using the model
+lm.pred <- predict(data.lm , newdata = data1.test)
+lm.RMSE<-sqrt(mean((lm.pred - data1.test$SalaryNormalized)^2)) #RMSE value, the smaller the better
+lm.RMSE
+```
+
+```{r}
+###Log transformation###
+log.lm <- lm(log(SalaryNormalized) ~., data=data1.train)
+summary(log.lm)
+
+log.pred <- predict(log.lm , newdata = data1.test)
+log.RMSE<-sqrt(mean((exp(log.pred) - data1.test$SalaryNormalized)^2)) #RMSE value, the smaller the better
+log.RMSE
+
+```
+
+```{r}
+
+####Partial Least Squares Regression####
+library(pls)
+set.seed(1)
+pls.fit=plsr(SalaryNormalized~., data=data1.train,scale=TRUE, validation="CV")
+summary(pls.fit)
+```
+```{r}
+validationplot(pls.fit,val.type="MSEP")
+pls.pred=predict(pls.fit,x.test,ncomp=7 )
+pls.RMSE<-sqrt(mean((pls.pred - y.test)^2))
+
+```
+
+```{r}
+####Ridge Regression####
+install.packages("glmnet")
+library("glmnet")
+x.train <- model.matrix(SalaryNormalized ~., data = data1.train)[, -1]
+y.train <- data1.train$SalaryNormalized
+# test set
+x.test <- model.matrix(SalaryNormalized ~., data = data1.test)[, -1]
+y.test <- data1.test$SalaryNormalized
+# obtain best lambda
+set.seed(1)
+ri.lambda<- cv.glmnet(x.train, y.train, alpha = 0)
+plot(ri.lambda)
+```
+```{r}
+
+```
+
+```{r}
+# predict test set using best lambda and calculate RMSE
+ridge.fit <- glmnet(x.train, y.train, alpha = 0)
+plot(ridge.fit, xvar = "lambda", label = TRUE)
+
+ridge.pred <- predict(ridge.fit, s = ri.lambda$lambda.min, newx = x.test)
+ridge.RMSE<-sqrt(mean((ridge.pred - y.test)^2))
+
+```
+
+```{r}
+#### Principal components regression ####
+set.seed(2)
+pcr.fit=pcr(SalaryNormalized~., data=data1.train,scale=TRUE, validation="CV")
+summary(pcr.fit)
+validationplot(pcr.fit,val.type="MSEP")
+pcr.pred=predict(pcr.fit,x.test,ncomp=7)
+pcr.RMSE<-sqrt(mean((pcr.pred - y.test)^2))
+```
+
+```{r}
+### Lasso Regression ###
+ptm<-proc.time()
+set.seed(1)
+lasso.fit=glmnet(x.train,y.train,alpha=1)
+plot(lasso.fit)
+```
+
+```{r}
+la.lambda=cv.glmnet(x.train,y.train,alpha=1)
+plot(la.lambda)
+```
+
+```{r}
+# predict test set using best lambda and calculate RMSE
+lasso.pred=predict(lasso.fit,s=la.lambda$lambda.min,newx=x.test)
+lasso.RMSE<-sqrt(mean((lasso.pred - y.test)^2))
+```
+
+```{r}
+
+# RMSE summary
+RMSE <- rbind(lm.RMSE,log.RMSE,ridge.RMSE,lasso.RMSE,pcr.RMSE,pls.RMSE)
+rownames(RMSE) <- (c('Linear Regression', 'Linear Regression(log transform)','Ridge Regression',
+'The Lasso','Principal Components Regression','Partial Least Squares'))
+colnames(RMSE) <- 'RMSE'
+round(RMSE, 4)
+```
+The Linear Regression model with the log transformed performed marginally better than the other models. The fact that the other models have a very similar score is intriguing. 

@@ -1,0 +1,648 @@
+---
+title: "Yuha Yi Stats 517 Proj 2 Question 3 Bible"
+output: html_notebook
+---
+
+```{r}
+
+#install.packages("qdap")
+#install.packages("qdapDictionaries")
+#install.packages("trinker")
+#install.packages("qdapRegex")
+#install.packages("qdapTools")
+#install.packages("Rgraphviz")
+#install.packages("testmineR")
+#install.packages("rowSums")
+install.packages("Hmisc")
+library(qdapDictionaries)
+library(dendextend)
+library(qdapRegex)
+#library(qdapTools)
+library(mclust)
+#library(qdap)
+library(MASS)
+library(stringr)
+#install.packages("cmeans")
+#library(cmeans)
+library(tm)
+library("textmineR")
+library(ggplot2)
+#library("Rgraphviz")
+library(wordcloud)
+#install.packages("labels_color")
+#library("labels_color")
+library("mclust")
+#install.packages("devtools")
+#install.packages("SnowballC")
+#install.packages("github")
+#install.packages("trinker")
+library("devtools")
+library(tm)
+library(SnowballC)
+library(RColorBrewer)
+#install.packages("kmeans")
+#library("kmeans")
+library(cluster)
+#install_github("hadley/devtools")
+#install_github("qdapDictionaries", "trinker")
+#install_github("qdapRegex", "trinker")
+#install_github("qdapTools", "trinker")
+#install_github("qdap", "trinker")
+```
+
+```{r}
+library("ggplot2")
+library("gridExtra")
+library(plyr)
+library(Hmisc)
+library(ROCR)
+library(gbm)
+library(MASS)
+library(e1071)
+library(irlba)
+library(Matrix)
+library(rms)
+library(class)
+library(factoextra)
+library(NbClust)
+library(magrittr)
+library('fpc')
+#library('Mclust')
+library(ngram)
+library(dendextend)
+library(textmineR)
+library(clue)
+```
+
+```{r}
+library("ggplot2")
+library("gridExtra")
+library(plyr)
+#install.packages("ROCR")
+library(ROCR)
+#install.packages("gbm")
+library(gbm)
+library(MASS)
+library(e1071)
+#install.packages("irlba")
+library(irlba)
+library(Matrix)
+#install.packages("rms")
+library(rms)
+library(class)
+install.packages("sp")
+library(sp)
+#install.packages("factoextra")
+library(factoextra)
+#install.packages("NbClust")
+library(NbClust)
+library(magrittr)
+library('fpc')
+#install.packages("ngram")
+library(ngram)
+library(dendextend)
+#install.packages("textmineR")
+library(textmineR)
+#install.packages("clue")
+library(clue)
+```
+
+```{r}
+ASV<-read.csv("http://www.webpages.uidaho.edu/~stevel/Datasets/bible_asv.csv",header=TRUE,sep=',')
+
+dim(ASV)
+
+attach(ASV)
+txt.b=c()
+for (i in 1:66) 
+  {
+  txt.b[i]=paste(text[Books==as.character(unique(Books)[i])],collapse = " ")
+  }
+
+ASV_Books=data.frame(Books=unique(Books),Testaments=as.factor(c(rep("OT",39),rep("NT",27))), 
+                     Sections=as.factor(c(rep("Law",5),rep("History",12),rep("Wisdom",5),rep("Prophets",17),rep("Gospels",5),rep("Paul",13),rep("Apostles",9))),
+                     text=txt.b)
+
+dim(ASV_Books)
+```
+
+```{r}
+attach(ASV)
+txt.b = c()
+txt.b.wc = c()
+for (i in 1:66)
+    {
+    txt.b[i] = paste(text[Books == as.character(unique(Books)[i])], collapse = " ")
+    txt.b.wc[i] = sapply((txt.b[i]), length)
+}
+
+
+text.Chapter = c()
+text.Chapter.wc = c()
+for (i in 1:1189)
+    {
+    text.Chapter[i] = paste(text[Chapters == as.character(unique(Chapters)[i])], collapse = " ")
+    text.Chapter.wc[i] = sapply((text.Chapter[i]), length)
+}
+
+Books = c()
+for (i in unique(ASV$Books))
+    {
+    kend = length(unique(ASV[ASV$Books == i, ]$Chapters))
+    print (i)
+    print (kend)
+    Books = c(Books, rep(i, kend))
+}
+```
+```{r}
+ASV_Books = data.frame(Testaments = c(rep('OT', 39), rep('NT', 27)), 
+                       Sections = c(rep('Law', 5), rep('History', 12), rep('Wisdom', 5), rep('Prophets', 17), rep('Gospels', 5), rep('Paul', 13), rep('Apostles', 9)),
+                       Books = unique(Books), text = txt.b, 
+                       wordcount = txt.b.wc)
+Testaments = c(rep('OT', 39), rep('NT', 27))
+Sections = c(rep('Law', 5), rep('History', 12), rep('Wisdom', 5), rep('Prophets', 17), rep('Gospels', 5), rep('Paul', 13), rep('Apostles', 9))
+```
+
+
+
+```{r}
+docs <- Corpus(VectorSource(ASV_Books$text))
+summary(docs)
+```
+
+```{r}
+stopwords("english")
+```
+```{r}
+myCorpus <- Corpus(VectorSource(ASV_Books$text))
+mystopwords <- c(stopwords('english'), "and", "unto", "shall")
+myCorpus <- tm_map(myCorpus, removeWords, mystopwords)
+tdm <- TermDocumentMatrix(myCorpus, control = list(wordLengths = c(1, Inf)))
+freq.terms <- findFreqTerms(tdm, lowfreq = 15)
+term.freq <- rowSums(as.matrix(tdm))
+term.freq <- subset(term.freq, term.freq >= 15)
+df <- data.frame(term = names(term.freq), freq = term.freq)
+dim(df)
+ggplot(df[1:10, 1:2], aes(x = term, y = freq)) + geom_bar(stat = "identity") + xlab("Terms") + ylab("Count")
+```
+
+```{r}
+
+docs <- tm_map(docs, removeWords, mystopwords)
+dtm <- TermDocumentMatrix(docs)
+m <- as.matrix(dtm)
+v <- sort(rowSums(m),decreasing=TRUE)
+d <- data.frame(word = names(v),frequency=v)
+head(d, 15)
+```
+
+```{r}
+
+wordcloud(words = d$word, freq = d$freq, min.freq = 1,
+          max.words=200, random.order=FALSE, rot.per=0.35, 
+          colors=brewer.pal(8, "Dark2"))
+```
+
+```{r}
+findFreqTerms(dtm, lowfreq = 4)
+findAssocs(dtm, terms = "freedom", corlimit = 0.3)
+```
+
+
+```{r}
+barplot(d[1:15,]$freq, las = 2, names.arg = d[1:15,]$word,
+        col ="green", main ="Most frequent words",
+        ylab = "Word Frequencies")
+```
+
+```{r}
+tdm2 <- removeSparseTerms(tdm, sparse = 0.85)
+m2 <- as.matrix(tdm2)
+distMatrix <- dist(scale(m2))
+fit <- hclust(distMatrix, method = "ward")
+plot(fit)
+rect.hclust(fit, k = 5)
+```
+
+```{r}
+m3 <- t(m2)
+k <- 5
+kmeansResult <- kmeans(m3, k)
+round(kmeansResult$centers, digits = 2)
+```
+
+
+```{r}
+
+#Collapsing into Books and Chapters
+attach(ASV)
+
+txt.b=c()
+txt.b.wc=c()
+for (i in 1:66) 
+  {
+  txt.b[i]=paste(text[Books==as.character(unique(Books)[i])],collapse = " ")
+  }
+
+text.Chapter=c()
+text.Chapter.wc=c()
+for (i in 1:1189) 
+  {
+  text.Chapter[i]=paste(text[Chapters==as.character(unique(Chapters)[i])],collapse = " ")
+  }
+
+Books = c()
+for (i in unique(ASV$Books)) 
+  {
+  kend = length(unique(ASV[ASV$Books==i,]$Chapters))
+    Books = c(Books, rep(i, kend))
+  }
+
+ASV_Chapters=data.frame(Testaments=c(rep('OT',929),rep('NT',260)),
+                        Sections=c(rep('Law',187),rep('History',249),rep('Wisdom',243),rep('Prophets',250),
+                                   rep('Gospels',117),rep('Paul',87),rep("Apostles",56)),
+                        Books=Books,
+                        Chapters=unique(Chapters),text=text.Chapter)
+
+ASV_Books=data.frame(Testaments=c(rep('OT',39),rep('NT',27)),
+                        Sections=c(rep('Law',5),rep('History',12),rep('Wisdom',5),rep('Prophets',17),
+                                   rep('Gospels',5),rep('Paul',13),rep("Apostles",9)),
+                        Books=unique(Books),text=txt.b)
+                        
+
+Testaments=c(rep('OT',39),rep('NT',27))
+Sections=c(rep('Law',5),  rep('History',12),rep('Wisdom',5),rep('Prophets',17),
+                                   rep('Gospels',5),rep('Paul',13),rep("Apostles",9))
+```
+
+```{r}
+## Term Document Matrix ##
+my_stopwords1 = c("a", "about", "above", "above", "across", "after", "afterwards", "again", "against", "all", "almost", "alone", "along", "already", "also","although","always","am","among", "amongst", "amoungst", "amount", "an", "and", "another", "any","anyhow","anyone","anything","anyway", "anywhere", "are", "around", "as", "at", "back","be","became", "because","become","becomes", "becoming", "been", "before", "beforehand", "behind", "being", "below", "beside", "besides", "between", "beyond", "bill", "both", "bottom","but", "by", "call", "can", "cannot", "cant", "co", "con", "could", "couldnt", "cry", "de", "describe", "detail", "do", "done", "down", "due", "during", "each", "eg", "eight", "either", "eleven","else", "elsewhere", "empty", "enough", "etc", "even", "ever", "every", "everyone", "everything", "everywhere", "except", "few", "fifteen", "fify", "fill", "find", "fire", "first", "five", "for", "former", "formerly", "forty", "found", "four", "from", "front", "full", "further", "get", "give", "go", "had", "has", "hasnt", "have", "he", "hence", "her", "here", "hereafter", "hereby", "herein", "hereupon", "hers", "herself", "him", "himself", "his", "how", "however", "hundred", "ie", "if", "in", "inc", "indeed", "interest", "into", "is", "it", "its", "itself", "keep", "last", "latter", "latterly", "least", "less", "ltd", "made", "many", "may", "me", "meanwhile", "might", "mill", "mine", "more", "moreover", "most", "mostly", "move", "much", "must", "my", "myself", "name", "namely", "neither", "never", "nevertheless", "next", "nine", "no", "nobody", "none", "noone", "nor", "not", "nothing", "now", "nowhere", "of", "off", "often", "on", "once", "one", "only", "onto", "or", "other", "others", "otherwise", "our", "ours", "ourselves", "out", "over", "own","part", "per", "perhaps", "please", "put", "rather", "re", "same", "see", "seem", "seemed", "seeming", "seems", "serious", "several", "she", "should", "show", "side", "since", "sincere", "six", "sixty", "so", "some", "somehow", "someone", "something", "sometime", "sometimes", "somewhere", "still", "such", "system", "take", "ten", "than", "that", "the", "their", "them", "themselves", "then", "thence", "there", "thereafter", "thereby", "therefore", "therein", "thereupon", "these", "they", "thickv", "thin", "third", "this", "those", "though", "three", "through", "throughout", "thru", "thus", "to", "together", "too", "top", "toward", "towards", "twelve", "twenty", "two", "un", "under", "until", "up", "upon", "us", "very", "via", "was", "we", "well", "were", "what", "whatever", "when", "whence", "whenever", "where", "whereafter", "whereas", "whereby", "wherein", "whereupon", "wherever", "whether", "which", "while", "whither", "who", "whoever", "whole", "whom", "whose", "why", "will", "with", "within", "without", "would", "yet", "you", "your", "yours", "yourself", "yourselves", "the")
+
+my_stopwords2 = c('thou','thee','thy','ye','shall','shalt','lo','unto',
+                  'hath', 'thereof', 'hast', 'set', 'thine', 'art', 'yea', 'midst', 
+                  'wherefore', 'wilt', 'thyself')
+# Turn those sentences into a DTM
+dtm.ngrams = vector("list", 3*2*2)
+j=1
+for (idf_weight in c(FALSE, TRUE)) {
+  for (stemfn_name in c("None", "Porter")){
+    if (stemfn_name=="Porter"){ stemfn = function(x) SnowballC::wordStem(x, "porter")} else{ stemfn = NULL}
+    for (ngram_length in c(1,3,7)) {
+      dtm <- CreateDtm(ASV_Books$text, 
+                       doc_names = ASV_Books$Books,
+                       ngram_window = c(1, ngram_length),
+                       stopword_vec = c(tm::stopwords("english"),
+                                        tm::stopwords("SMART"),
+                                        my_stopwords1, my_stopwords2),
+                                        stem_lemma_function = stemfn,
+                       lower = TRUE, remove_punctuation = TRUE, remove_numbers = FALSE, verbose=F
+                       )
+      # explore basic frequencies & curate vocabulary
+      tf <- TermDocFreq(dtm = dtm)
+      # Keep only words appearing more than 2 times, AND in more than 1 document
+      vocabulary <- tf$term[tf$term_freq>2 & tf$doc_freq>1]
+      dtm <- dtm[ , vocabulary]
+      # TF-IDF Frequency re-weighting
+      if (idf_weight){
+        idf <- log(nrow(dtm) / colSums(dtm > 0))
+        tfidf <- t(dtm) * idf
+        tfidf <- t(tfidf)
+        dtm <-tfidf
+      }
+      dtm.ngrams[[j]] = dtm
+      j = j+1
+      # Calc Hellinger Dist (x = mymat)
+      # dist.mtx=CalcHellingerDist(as.matrix(dtm))
+    }
+  }
+}
+
+```
+
+```{r}
+
+for (i in 1:7){
+dtm = dtm.ngrams[[i]]
+csim <- dtm / sqrt(rowSums(dtm*dtm))
+csim <- csim %*% t(csim)
+
+dist.mtx <- 1-csim
+
+fit.pca <- prcomp(as.dist(dist.mtx))
+plot(fit.pca$x[,1:2], type='n',main="Seven Sections of the Bible based on Words Presence")
+text(x = fit.pca$x[,1], y = fit.pca$x[,2], labels = row.names(fit.pca$x), col=unclass(as.factor(ASV_Books$Sections)), cex=.95, font=2)
+mtext( cex = 1, text = "Seven Sections of the Bible based on Words Presence", 
+       line=2,
+       outer=FALSE)
+}
+```
+```{r}
+## N grams and stemming
+j = 1
+for (idf_weight in c(FALSE, TRUE)) {
+  for (stemfn_name in c("None", "Porter")){
+    for (ngram_length in c(1,3,7)) {
+    
+      dtm = dtm.ngrams[[j]]
+      j = j+1
+      
+      csim <- dtm / sqrt(rowSums(dtm*dtm))
+      csim <- csim %*% t(csim)
+      dist.mtx <- 1-csim
+      hc.avg=hclust(as.dist(dist.mtx),'average')
+      avg.table = table(cutree(hc.avg, k=7), ... = as.numeric(ASV_Books$Sections[hc.avg$order]))
+      avg.match = solve_LSAP(x = avg.table, maximum = TRUE)
+      avg.sxr = sum(avg.table[cbind(seq_along(avg.match),      avg.match)]) / sum(avg.table)
+      
+      avg.table = table(cutree(hc.avg, k=2), as.numeric(ASV_Books$Testaments[hc.avg$order]))
+      avg.match = solve_LSAP(x = avg.table, maximum = TRUE)
+      avg.sxrT = sum(avg.table[cbind(seq_along(avg.match), avg.match)]) / sum(avg.table)
+      
+      hc.wald=hclust(as.dist(dist.mtx),'ward.D2')
+      
+      wald.table = table(cutree(hc.wald, k=7), as.numeric(ASV_Books$Sections[hc.wald$order]))
+      wald.match = solve_LSAP(x = wald.table, maximum = TRUE)
+      wald.sxr = sum(wald.table[cbind(seq_along(wald.match), wald.match)]) / sum(wald.table)
+      
+      wald.table = table(cutree(hc.wald, k=2), as.numeric(ASV_Books$Testaments[hc.wald$order]))
+      wald.match = solve_LSAP(x = wald.table, maximum = TRUE)
+      wald.sxrT = sum(wald.table[cbind(seq_along(wald.match), wald.match)]) / sum(wald.table)
+      
+      cat(sprintf("n-grams: %d    tf-idf: %i    stemming: %s\n", ngram_length, idf_weight, stemfn_name))
+      cat(sprintf("Sections:   AVG: %f\tWALD: %f\n", avg.sxr, wald.sxr))
+      cat(sprintf("Testaments: AVG: %f\tWALD: %f\n", avg.sxrT, wald.sxrT))
+      
+      
+    }
+  }
+}
+```
+
+```{r}
+dtm <- dtm.ngrams[[3]]
+csim <- dtm / sqrt(rowSums(dtm*dtm))
+csim <- csim %*% t(csim)
+
+dist.mtx <- 1-csim
+hc.avg=hclust(as.dist(dist.mtx),'average')
+hc.wald=hclust(as.dist(dist.mtx),'ward.D2')
+```
+
+```{r}
+dend=as.dendrogram(hc.avg)
+
+labels_colors(dend) <- as.numeric(as.factor(ASV_Books$Sections[hc.avg$order])) 
+
+dend <- set(dend, "labels_cex", 1.12)
+par(mar = c(4,1,1,12))
+plot(dend, horiz = TRUE, main='Dendrogram of the 7 Sections of the Bible based on Words Counts ')
+legend("topleft", legend = unique(ASV_Books$Sections), fill = as.numeric(as.factor(unique(ASV_Books$Sections))))
+rect.dendrogram(dend, k=7, border="red", horiz=T)
+```
+```{r}
+fit <- cmdscale(as.dist(dist.mtx), k = 2)
+plot(fit[,2]~fit[,1],type='n')
+text(x = fit[,1], y = fit[,2], labels = row.names(fit), col=unclass(as.factor(ASV_Books$Sections)), cex=.95, font=2)
+mtext( cex = 1, text = "Seven Sections of the Bible based on Words Counts", 
+       line=2,
+       outer=FALSE)
+```
+
+```{r}
+## Pca analysis of old and new testament ##
+plot(fit.pca$x[,1:2], type='n', main="PCA of 2 Testaments of Bible based on word Counts")
+text(x = fit.pca$x[,1], y = fit.pca$x[,2], labels = row.names(fit.pca$x), col=unclass(as.factor(ASV_Books$Testaments)), cex=.95, font=2)
+mtext( cex = 1, text = "Seven Sections of the Bible based on Words Presence", 
+       line=2,
+       outer=FALSE)
+```
+
+```{r}
+
+j = 1
+for (idf_weight in c(FALSE, TRUE)) {
+  for (stemfn_name in c("None", "Porter")){
+    for (ngram_length in c(1,3,7)) {
+    
+      dtm = dtm.ngrams[[j]]
+      j = j+1
+     
+      dtm1<-dtm
+      dtm1[dtm1>1] <- 1
+      csim <- dtm1 / sqrt(rowSums(dtm1*dtm1))
+      csim <- csim %*% t(csim)
+     
+      dist.mtx1 <- 1-csim
+  
+     
+      hc.avg1=hclust(as.dist(dist.mtx1),'average')
+      
+     
+      avg.table = table(cutree(hc.avg1, k=7), as.numeric(ASV_Books$Sections[hc.avg1$order]))
+      avg.match = solve_LSAP(x = avg.table, maximum = TRUE)
+      avg.sxr = sum(avg.table[cbind(seq_along(avg.match), avg.match)]) / sum(avg.table)
+      
+      avg.table = table(cutree(hc.avg1, k=2), as.numeric(ASV_Books$Testaments[hc.avg1$order]))
+      avg.match = solve_LSAP(x = avg.table, maximum = TRUE)
+      avg.sxrT = sum(avg.table[cbind(seq_along(avg.match), avg.match)]) / sum(avg.table)
+      
+     
+      hc.wald1=hclust(as.dist(dist.mtx1),'ward.D2')
+      
+      wald.table = table(cutree(hc.wald1, k=7), as.numeric(ASV_Books$Sections[hc.wald1$order]))
+      wald.match = solve_LSAP(x = wald.table, maximum = TRUE)
+      wald.sxr = sum(wald.table[cbind(seq_along(wald.match), wald.match)]) / sum(wald.table)
+      
+      wald.table = table(cutree(hc.wald1, k=2), as.numeric(ASV_Books$Testaments[hc.wald1$order]))
+      wald.match = solve_LSAP(x = wald.table, maximum = TRUE)
+      wald.sxrT = sum(wald.table[cbind(seq_along(wald.match), wald.match)]) / sum(wald.table)
+      
+      cat(sprintf("n-grams: %d    tf-idf: %i    stemming: %s\n", ngram_length, idf_weight, stemfn_name))
+      cat(sprintf("Sections:   AVG: %f\tWALD: %f\n", avg.sxr, wald.sxr))
+      cat(sprintf("Testaments: AVG: %f\tWALD: %f\n", avg.sxrT, wald.sxrT))
+    }
+  }
+}
+```
+```{r}
+dend=as.dendrogram(hc.avg1)
+labels_colors(dend) <- as.numeric(as.factor(ASV_Books$Sections[hc.avg1$order])) 
+dend <- set(dend, "labels_cex", 1.12)
+par(mar = c(4,1,1,12))
+plot(dend, horiz = TRUE, main='Dendrogram of the 7 Sections of the Bible based on Words Counts ')
+legend("topleft", legend = unique(ASV_Books$Sections), fill = as.numeric(as.factor(unique(ASV_Books$Sections))))
+rect.dendrogram(dend, k=7, border="red", horiz=T)
+```
+```{r}
+### K-Means ###
+j = 1
+for (idf_weight in c(FALSE, TRUE)) {
+  for (stemfn_name in c("None", "Porter")){
+    for (ngram_length in c(1,3,7)) {
+    
+      dtm = dtm.ngrams[[j]]
+      j = j+1
+      csim <- dtm / sqrt(rowSums(dtm*dtm))
+      csim <- csim %*% t(csim)
+      dist.mtx <- 1-csim
+    
+      set.seed(1234)
+      km=kmeans(as.dist(dist.mtx), 7)
+      kmT=kmeans(as.dist(dist.mtx), 2)
+      km.table = table(km$cluster, as.numeric(ASV_Books$Sections))
+      km.match = solve_LSAP(x = km.table, maximum = TRUE)
+      km.sxr = sum(km.table[cbind(seq_along(km.match), km.match)]) / sum(km.table)
+      
+      kmT.table = table(kmT$cluster, as.numeric(ASV_Books$Testaments))
+      kmT.match = solve_LSAP(x = kmT.table, maximum = TRUE)
+      kmT.sxr = sum(kmT.table[cbind(seq_along(kmT.match), kmT.match)]) / sum(kmT.table)
+      
+      cat(sprintf("n-grams: %d    tf-idf: %i    stemming: %s\n", ngram_length, idf_weight, stemfn_name))
+      cat(sprintf("Sections:   kmeans: %f\n", km.sxr))
+      cat(sprintf("Testaments: kmeans: %f\n", kmT.sxr))
+    }
+  }
+}
+```
+```{r}
+
+dtm = dtm.ngrams[[7]]
+csim <- dtm / sqrt(rowSums(dtm*dtm))
+csim <- csim %*% t(csim)
+dist.mtx <- 1-csim
+fit.pca <- prcomp(as.dist(dist.mtx))
+plot(fit.pca$x[,1:2], type='n',main="Seven Sections of the Bible based on Words Presence - KMEANS")
+text(x = fit.pca$x[,1], y = fit.pca$x[,2], labels = row.names(fit.pca$x), col=unclass(as.factor(km$cluster)), cex=.95, font=2)
+mtext( cex = 1, text = "Seven Sections of the Bible based on Words Presence", 
+       line=2,
+       outer=FALSE)
+fit.pca <- prcomp(as.dist(dist.mtx))
+plot(fit.pca$x[,1:2], type='n',main="Two Testaments of the Bible based on Words Presence - KMEANS")
+text(x = fit.pca$x[,1], y = fit.pca$x[,2], labels = row.names(fit.pca$x), col=unclass(as.factor(kmT$cluster)), cex=.95, font=2)
+mtext( cex = 1, text = "Seven Sections of the Bible based on Words Presence", 
+       line=2,
+       outer=FALSE)
+```
+
+```{r}
+## Fuzzy K-Means ##
+km.sxr.best = 0
+kmT.sxr.best = 0
+j = 1
+for (idf_weight in c(FALSE, TRUE)) {
+  for (stemfn_name in c("None", "Porter")){
+    for (ngram_length in c(1,3,7)) {
+    
+      dtm = dtm.ngrams[[j]]
+      j = j+1
+  
+      csim <- dtm / sqrt(rowSums(dtm*dtm))
+      csim <- csim %*% t(csim)
+        dist.mtx <- 1-csim
+    
+      set.seed(1234)
+      km=cmeans(as.dist(dist.mtx), 7, m=2, method="cmeans")
+      kmT=cmeans(as.dist(dist.mtx), 2, m=2, method="cmeans")
+      km.table = table(km$cluster, as.numeric(ASV_Books$Sections))
+      km.match = solve_LSAP(x = km.table, maximum = TRUE)
+      km.sxr = sum(km.table[cbind(seq_along(km.match), km.match)]) / sum(km.table)
+      if (km.sxr > km.sxr.best) {
+        km.sxr.best = km.sxr
+        km.best = km
+        km.j = j-1
+      }
+      
+      kmT.table = table(kmT$cluster, as.numeric(ASV_Books$Testaments))
+      kmT.match = solve_LSAP(x = kmT.table, maximum = TRUE)
+      kmT.sxr = sum(kmT.table[cbind(seq_along(kmT.match), kmT.match)]) / sum(kmT.table)
+      if (kmT.sxr > kmT.sxr.best) {
+        kmT.sxr.best = kmT.sxr
+        kmT.best = kmT
+        kmT.j = j-1
+      }
+      
+      cat(sprintf("n-grams: %d    tf-idf: %i    stemming: %s\n", ngram_length, idf_weight, stemfn_name))
+      cat(sprintf("Sections:   cmeans: %f\n", km.sxr))
+      cat(sprintf("Testaments: cmeans: %f\n", kmT.sxr))
+    }
+  }
+}
+```
+```{r}
+dtm = dtm.ngrams[[km.j]]
+csim <- dtm / sqrt(rowSums(dtm*dtm))
+csim <- csim %*% t(csim)
+dist.mtx <- 1-csim
+fit.pca <- prcomp(as.dist(dist.mtx))
+plot(fit.pca$x[,1:2], type='n',main="Seven Sections of the Bible based on Words Presence - CMEANS")
+text(x = fit.pca$x[,1], y = fit.pca$x[,2], labels = row.names(fit.pca$x), col=unclass(as.factor(km.best$cluster)), cex=.95, font=2)
+mtext( cex = 1, text = "Seven Sections of the Bible based on Words Presence", 
+       line=2,
+       outer=FALSE)
+
+dtm = dtm.ngrams[[kmT.j]]
+csim <- dtm / sqrt(rowSums(dtm*dtm))
+csim <- csim %*% t(csim)
+dist.mtx <- 1-csim
+fit.pca <- prcomp(as.dist(dist.mtx))
+plot(fit.pca$x[,1:2], type='n',main="Two Testaments of the Bible based on Words Presence - CMEANS")
+text(x = fit.pca$x[,1], y = fit.pca$x[,2], labels = row.names(fit.pca$x), col=unclass(as.factor(kmT.best$cluster)), cex=.95, font=2)
+mtext( cex = 1, text = "Seven Sections of the Bible based on Words Presence", 
+       line=2,
+       outer=FALSE)
+```
+```{r}
+## Gaussian Mixture ##
+mc.sxr.best = 0
+mcT.sxr.best = 0
+j = 1
+for (idf_weight in c(FALSE, TRUE)) {
+  for (stemfn_name in c("None", "Porter")){
+    for (ngram_length in c(1,3,7)) {
+    
+      dtm = dtm.ngrams[[j]]
+      j = j+1
+      csim <- dtm / sqrt(rowSums(dtm*dtm))
+      csim <- csim %*% t(csim)
+      dist.mtx <- 1-csim
+    
+      set.seed(1234)
+      mc=Mclust(as.dist(dist.mtx), 7, verbose=F)
+      mcT=Mclust(as.dist(dist.mtx), 2, verbose=F)
+      mc.table = table(mc$classification, as.numeric(ASV_Books$Sections))
+      mc.match = solve_LSAP(x = mc.table, maximum = TRUE)
+      mc.sxr = sum(mc.table[cbind(seq_along(mc.match), mc.match)]) / sum(mc.table)
+      if (mc.sxr > mc.sxr.best) {
+        mc.sxr.best = mc.sxr
+        mc.best = mc
+        mc.j = j-1
+      }
+      
+      mcT.table = table(mcT$classification, as.numeric(ASV_Books$Testaments))
+      mcT.match = solve_LSAP(x = mcT.table, maximum = TRUE)
+      mcT.sxr = sum(mcT.table[cbind(seq_along(mcT.match), mcT.match)]) / sum(mcT.table)
+      if (mcT.sxr > mcT.sxr.best) {
+        mcT.sxr.best = mcT.sxr
+        mcT.best = mcT
+        mcT.j = j-1
+      }
+      
+      cat(sprintf("n-grams: %d    tf-idf: %i    stemming: %s\n", ngram_length, idf_weight, stemfn_name))
+      cat(sprintf("Sections:   mclust: %f\n", mc.sxr))
+      cat(sprintf("Testaments: mclust: %f\n", mcT.sxr))
+    }
+  }
+}
+```
+```{r}
+fviz_mclust(mc.best, "uncertainty", palette = "npg")
+fviz_mclust(mcT.best, "uncertainty", palette = "rickandmorty")
+```
+
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
